@@ -2,14 +2,14 @@
 
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { supabase } from '@/lib/supabase';
+import { supabase } from '@/lib/supabase-client';
 import {
   PENDING_PROFILE_ID_KEY,
   isProfileDraftUuid,
 } from '@/lib/profile-draft';
 
-function goSwipe() {
-  window.location.href = '/swipe';
+function goToForums() {
+  window.location.href = '/forums';
 }
 
 export default function WaitingPage() {
@@ -34,7 +34,7 @@ export default function WaitingPage() {
         if (!res.ok || cancelled) return;
         const body = (await res.json()) as { is_approved?: boolean };
         if (body.is_approved === true && !cancelled) {
-          goSwipe();
+          goToForums();
         }
       } catch {
         // ignore; realtime may still fire
@@ -62,7 +62,7 @@ export default function WaitingPage() {
         (payload) => {
           const row = payload.new as { is_approved?: boolean } | undefined;
           if (row?.is_approved === true && !cancelled) {
-            goSwipe();
+            goToForums();
           }
         }
       )
@@ -86,15 +86,41 @@ export default function WaitingPage() {
   }, [router]);
 
   return (
-    <main className="min-h-screen bg-black text-white flex flex-col items-center justify-center p-6 gap-4">
-      <p className="text-xl font-semibold text-center">Request sent</p>
-      <p className="text-neutral-400 text-center max-w-md">
-        Waiting for approval. You&apos;ll be redirected when your request is
-        accepted.
-      </p>
-      {hint && (
-        <p className="text-amber-200/90 text-sm text-center max-w-lg">{hint}</p>
-      )}
+    <main className="min-h-screen flex flex-col items-center justify-center px-6 py-16" style={{ background: 'var(--color-bg)' }}>
+      <div className="text-center max-w-lg">
+        {/* Pulsing Neon Indicator */}
+        <div className="flex items-center justify-center mb-8">
+          <div className="pulse-dot"></div>
+        </div>
+
+        <h1 className="text-3xl font-light mb-4">Awaiting commander's approval</h1>
+        <p className="text-lg mb-8" style={{ color: 'var(--color-text-secondary)' }}>
+          Your request has been received and is currently under review.
+          <br />
+          You will be redirected automatically when approved.
+        </p>
+
+        {hint && (
+          <div className="neon-border-subtle p-6 mb-8">
+            <p className="text-sm" style={{ color: 'var(--color-text-secondary)' }}>
+              {hint}
+            </p>
+          </div>
+        )}
+
+        <div className="space-y-4">
+          <button
+            onClick={() => window.location.reload()}
+            className="minimal-button px-8 py-3 text-sm font-medium"
+          >
+            Check Status
+          </button>
+          
+          <div className="text-xs" style={{ color: 'var(--color-text-secondary)' }}>
+            This page will automatically refresh when your request is approved
+          </div>
+        </div>
+      </div>
     </main>
   );
 }

@@ -36,10 +36,43 @@ async function answerCallbackQuery(
   }
 }
 
+async function editMessageText(
+  botToken: string,
+  chatId: string | number,
+  messageId: string | number,
+  text: string,
+  parseMode: 'HTML' | 'Markdown' = 'HTML'
+) {
+  try {
+    await outboundFetch(
+      `https://api.telegram.org/bot${botToken}/editMessageText`,
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          chat_id: chatId,
+          message_id: messageId,
+          text,
+          parse_mode: parseMode,
+        }),
+      }
+    );
+  } catch (err) {
+    logNetworkError(err, 'bot editMessageText');
+  }
+}
+
 type TelegramUpdate = {
   callback_query?: {
     id: string;
     data?: string;
+    message?: {
+      message_id: number;
+      chat: {
+        id: number;
+      };
+      text?: string;
+    };
   };
 };
 
@@ -58,10 +91,12 @@ export async function POST(req: Request) {
 
   const cq = update.callback_query;
   if (!cq?.data) {
+    console.log('[bot] Received update without callback data');
     return NextResponse.json({ ok: true });
   }
 
   const { data, id: callbackQueryId } = cq;
+  console.log('[bot] Processing callback:', { data, callbackQueryId });
 
   if (data.startsWith(APPROVE_PREFIX)) {
     const userId = data.slice(APPROVE_PREFIX.length);
@@ -88,7 +123,20 @@ export async function POST(req: Request) {
         return NextResponse.json({ ok: true });
       }
 
+      // Answer the callback query first
       await answerCallbackQuery(botToken, callbackQueryId, 'Approved', false);
+
+      // Edit the original message to remove buttons and show status
+      if (cq.message?.message_id && cq.message?.chat?.id) {
+        const originalText = cq.message.text || '';
+        const updatedText = `${originalText}\n\n✅ <b>Request approved</b>`;
+        await editMessageText(
+          botToken,
+          cq.message.chat.id,
+          cq.message.message_id,
+          updatedText
+        );
+      }
     } catch (e) {
       console.error(e);
       await answerCallbackQuery(
@@ -126,7 +174,20 @@ export async function POST(req: Request) {
         return NextResponse.json({ ok: true });
       }
 
+      // Answer the callback query first
       await answerCallbackQuery(botToken, callbackQueryId, 'Rejected', false);
+
+      // Edit the original message to remove buttons and show status
+      if (cq.message?.message_id && cq.message?.chat?.id) {
+        const originalText = cq.message.text || '';
+        const updatedText = `${originalText}\n\n❌ <b>Request rejected</b>`;
+        await editMessageText(
+          botToken,
+          cq.message.chat.id,
+          cq.message.message_id,
+          updatedText
+        );
+      }
     } catch (e) {
       console.error(e);
       await answerCallbackQuery(
